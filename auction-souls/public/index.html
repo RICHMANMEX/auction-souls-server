@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Аукцион Душ — стадия 2</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Аукцион Душ</h1>
+        <span id="phase-label">Фаза: ожидание игроков</span>
+    </header>
+
+    <main>
+        <section id="connect-screen" class="panel">
+            <h2>Вход в комнату</h2>
+            <p class="hint">Стадия 2: базовая инфраструктура. Вход, лобби, готовность.</p>
+            <label>Имя: <input id="name-input" maxlength="20" placeholder="Ваше имя"></label>
+            <button id="connect-btn">Войти</button>
+            <p id="connect-msg" class="msg"></p>
+        </section>
+
+        <section id="game-screen" hidden>
+            <div class="panel">
+                <h2>Игроки в комнате</h2>
+                <table>
+                    <thead>
+                        <tr><th>Игрок</th><th>HP</th><th>Души</th><th>Готовность</th></tr>
+                    </thead>
+                    <tbody id="players-table"></tbody>
+                </table>
+                <button id="ready-btn">Я готов</button>
+                <p class="hint">Игровой цикл (предмет, ставки) появится на стадии 3.</p>
+            </div>
+
+            <div class="panel">
+                <h2>Журнал</h2>
+                <ul id="log"></ul>
+            </div>
+        </section>
+    </main>
+
+    <script src="/sdk/colyseus.js"></script>
+    <script src="/client.js" defer></script>
+</body>
+</html>
