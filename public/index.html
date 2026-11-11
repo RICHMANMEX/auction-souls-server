@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Аукцион Душ — стадия 3</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Аукцион Душ</h1>
+        <div id="status-bar">
+            <span id="round-label">Раунд: —</span>
+            <span id="phase-label">Фаза: ожидание игроков</span>
+        </div>
+    </header>
+
+    <main>
+        <section id="connect-screen" class="panel">
+            <h2>Вход в комнату</h2>
+            <p class="hint">Стадия 3: сетевой прототип и логика скрытого аукциона (до 4 игроков).</p>
+            <label>Имя: <input id="name-input" maxlength="20" placeholder="Ваше имя" autocomplete="off"></label>
+            <button id="connect-btn">Войти</button>
+            <p id="connect-msg" class="msg"></p>
+        </section>
+
+        <section id="game-screen" hidden>
+            <div class="panel" id="item-panel">
+                <h2>Лот текущего раунда</h2>
+                <div id="item-card" class="hidden">
+                    <h3 id="item-name">—</h3>
+                    <p id="item-desc"></p>
+                </div>
+                <p class="hint">Применение боевых эффектов предметов и выбор цели — стадия 4.</p>
+            </div>
+
+            <div class="panel" id="players-panel">
+                <h2>Игроки в комнате</h2>
+                <table>
+                    <thead>
+                        <tr><th>Игрок</th><th>HP</th><th>Души</th><th>Статус</th></tr>
+                    </thead>
+                    <tbody id="players-table"></tbody>
+                </table>
+                <div id="lobby-controls">
+                    <button id="ready-btn">Я готов</button>
+                    <span id="lobby-hint" class="hint"></span>
+                </div>
+            </div>
+
+            <div class="panel" id="bet-panel">
+                <h2>Скрытая ставка</h2>
+                <div class="bet-row">
+                    <input type="range" id="bet-range" min="0" max="10" step="1" value="0">
+                    <input type="number" id="bet-input" min="0" max="10" step="1" value="0">
+                    <button id="bet-btn">Сделать ставку</button>
+                </div>
+                <p id="bet-msg" class="msg"></p>
+            </div>
+
+            <div class="panel" id="log-panel">
+                <h2>Журнал событий</h2>
+                <ul id="log"></ul>
+            </div>
+        </section>
+    </main>
+
+    <script src="/sdk/colyseus.js"></script>
+    <script src="/client.js" defer></script>
+</body>
+</html>

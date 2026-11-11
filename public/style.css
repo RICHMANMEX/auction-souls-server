@@ -1,0 +1,70 @@
+/* Рабочее оформление тестового клиента (Стадия 3). */
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #f2f2f2;
+    color: #222;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: #fff;
+    border-bottom: 1px solid #ccc;
+}
+
+h1 { margin: 0; font-size: 20px; }
+#status-bar { display: flex; gap: 18px; color: #444; font-size: 14px; font-weight: 500; }
+
+main {
+    max-width: 960px;
+    margin: 18px auto;
+    padding: 0 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.panel { background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 14px; }
+.panel h2 { margin: 0 0 10px; font-size: 16px; }
+
+#connect-screen { grid-column: 1 / -1; max-width: 440px; margin: 36px auto; text-align: center; }
+#game-screen { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+#bet-panel, #log-panel { grid-column: 1 / -1; }
+
+input, button {
+    font: inherit;
+    padding: 6px 12px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    background: #fff;
+}
+button { cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+#item-card { border: 1px dashed #888; border-radius: 4px; padding: 12px; text-align: center; margin-bottom: 8px; }
+#item-card h3 { margin: 0 0 6px; font-size: 18px; }
+#item-card p { margin: 0; color: #555; }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 6px; border-bottom: 1px solid #ddd; }
+tr.me td:first-child { font-weight: bold; }
+
+#lobby-controls { margin-top: 10px; display: flex; gap: 10px; align-items: center; }
+
+.bet-row { display: flex; gap: 10px; align-items: center; }
+.bet-row input[type="range"] { flex: 1; }
+.bet-row input[type="number"] { width: 70px; }
+
+.msg { color: #b00; min-height: 1.2em; margin: 6px 0 0; font-size: 13px; }
+.hint { color: #666; font-size: 13px; margin: 6px 0 0; }
+
+#log { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; font-size: 13px; }
+#log li { padding: 3px 0; border-bottom: 1px solid #eee; }
+
+.hidden { display: none !important; }
