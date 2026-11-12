@@ -2,10 +2,23 @@ import Phaser from 'phaser';
 import { Client, Room } from '@colyseus/sdk';
 import { GAME_WIDTH, GAME_HEIGHT, PLAYER_POSITIONS } from '../config/gameConfig';
 
-const SERVER_URL = 'ws://localhost:2567';
+// Автоматически определяем адрес сервера
+const getWebSocketUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+  const host = window.location.hostname;
+
+  if (host.includes('devtunnels.ms')) {
+    const tunnelHost = host.replace('-5173', '-2567');
+    return `${protocol}${tunnelHost}`;
+  }
+  return `${protocol}${host}:2567`;
+};
+
+const SERVER_URL = getWebSocketUrl();
+
 // Интерфейс для UI-элементов игрока
 interface PlayerUI {
-  body: Phaser.GameObjects.GameObject;
+  body: Phaser.GameObjects.Shape; // Исправлено с GameObject на Shape для поддержки графики/кругов
   nameText: Phaser.GameObjects.Text;
   hpText: Phaser.GameObjects.Text;
   soulsText: Phaser.GameObjects.Text;
@@ -47,7 +60,7 @@ export class GameScene extends Phaser.Scene {
     this.roundText = this.add.text(20, 20, 'Раунд: -', { fontSize: '18px', color: '#ffffff' });
     this.phaseText = this.add.text(20, 50, 'Фаза: ожидание', { fontSize: '18px', color: '#aaaaaa' });
 
-    // 3. Карточка предмета (в центре стола, скрыта по умолчанию)
+    // 3. Карточка предмета
     this.itemCard = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2);
     const cardBg = this.add.rectangle(0, 0, 300, 150, 0x2a2a2a).setStrokeStyle(2, 0xc9a961);
     this.itemNameText = this.add.text(0, -40, 'Лот: ???', { fontSize: '24px', color: '#c9a961', fontStyle: 'bold' }).setOrigin(0.5);
@@ -68,7 +81,7 @@ export class GameScene extends Phaser.Scene {
       this.playerObjects.push({ body, nameText, hpText, soulsText, statusText });
     });
 
-    // 5. Кнопка "Я готов" (для фазы waiting)
+    // 5. Кнопка "Я готов"
     this.readyButton = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 80, '[ Я ГОТОВ ]', {
       fontSize: '24px', color: '#ffffff', backgroundColor: '#333333', padding: { x: 20, y: 10 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setVisible(false);
@@ -77,7 +90,7 @@ export class GameScene extends Phaser.Scene {
     this.readyButton.on('pointerout', () => this.readyButton.setStyle({ color: '#ffffff' }));
     this.readyButton.on('pointerdown', () => this.toggleReady());
 
-    // 6. Панель ставок (для фазы betting)
+    // 6. Панель ставок
     this.betPanel = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT - 100);
     const betBg = this.add.rectangle(0, 0, 400, 80, 0x222222).setStrokeStyle(2, 0x666666);
     
@@ -98,7 +111,7 @@ export class GameScene extends Phaser.Scene {
     this.betPanel.add([betBg, minusBtn, plusBtn, this.betInputText, submitBetBtn, this.betErrorMsg]);
     this.betPanel.setVisible(false);
 
-    // 7. Журнал событий (слева)
+    // 7. Журнал событий
     this.logText = this.add.text(20, 100, '', {
       fontSize: '14px', color: '#aaaaaa', fontFamily: 'monospace'
     });
@@ -109,18 +122,19 @@ export class GameScene extends Phaser.Scene {
 
   private async connectToServer() {
     try {
-      // ВАЖНО: используем ws:// для localhost. Если Рома использует проброс портов VS Code, замени на его ссылку (wss://...)
       this.client = new Client(SERVER_URL);
       
-      this.room = await this.client.joinOrCreate('game', { name: 'Женя' });
-      this.addLog(`✓ Подключился! ID: ${this.room.sessionId}`);
+      // Запрашиваем уникальное имя, чтобы не быть обоими "Женями"
+      const playerName = prompt("Введите ваше имя для аукциона:", `Игрок_${Math.floor(Math.random() * 100)}`) || "Женя";
+
+      this.room = await this.client.joinOrCreate('game', { name: playerName });
+      this.addLog(`✓ Подключился как ${playerName}! ID: ${this.room.sessionId}`);
 
       // Слушаем изменения состояния
       this.room.onStateChange(() => {
         this.render();
       });
 
-      // Слушаем сообщения от сервера
       this.room.onMessage('event', (msg: any) => {
         this.addLog(msg.text);
       });
@@ -144,7 +158,7 @@ export class GameScene extends Phaser.Scene {
 
     } catch (e: any) {
       console.error('Ошибка подключения:', e);
-      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'Ошибка подключения к серверу!\nУбедись, что Рома запустил npm start', {
+      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'Ошибка подключения к серверу!\nУбедись, что сервер запущен', {
         fontSize: '20px', color: '#ff0000', align: 'center'
       }).setOrigin(0.5);
     }
@@ -155,7 +169,6 @@ export class GameScene extends Phaser.Scene {
     const state = this.room.state;
     const me = state.players.get(this.room.sessionId);
 
-    // Обновляем фазу и раунд
     const phaseLabels: Record<string, string> = {
       waiting: 'Ожидание игроков (лобби)',
       item_reveal: 'Показ лота раунда',
@@ -165,7 +178,6 @@ export class GameScene extends Phaser.Scene {
     this.roundText.setText(state.phase === 'waiting' ? 'Раунд: -' : `Раунд: ${state.round}`);
     this.phaseText.setText(`Фаза: ${phaseLabels[state.phase] || state.phase}`);
 
-    // Обновляем карточку предмета
     const showItem = ['item_reveal', 'betting', 'result'].includes(state.phase);
     this.itemCard.setVisible(showItem);
     if (showItem) {
@@ -173,9 +185,8 @@ export class GameScene extends Phaser.Scene {
       this.itemDescText.setText(state.itemDesc);
     }
 
-    // Обновляем игроков
-    this.playerObjects.forEach((obj, index) => {
-      obj.body.setVisible(false); // Скрываем по умолчанию
+    this.playerObjects.forEach((obj) => {
+      obj.body.setVisible(false);
       obj.nameText.setText('');
       obj.hpText.setText('');
       obj.soulsText.setText('');
@@ -191,7 +202,6 @@ export class GameScene extends Phaser.Scene {
         obj.hpText.setText(`HP: ${player.hp}/${player.maxHp}`);
         obj.soulsText.setText(`Souls: ${player.souls}`);
         
-        // Статус в зависимости от фазы
         if (state.phase === 'waiting') {
           obj.statusText.setText(player.ready ? '✓ ГОТОВ' : 'не готов');
         } else if (state.phase === 'betting') {
@@ -200,25 +210,26 @@ export class GameScene extends Phaser.Scene {
           obj.statusText.setText('🏆 ВЫИГРАЛ ЛОТ');
         }
 
-        // Подсветка себя
         if (sessionId === this.room.sessionId) {
-          (obj.body as Phaser.GameObjects.Circle).setStrokeStyle(4, 0xffff00);
+          (obj.body as Phaser.GameObjects.Arc).setStrokeStyle(4, 0xffff00);
         }
         playerIndex++;
       }
     });
 
-    // Управление видимостью кнопок
     this.readyButton.setVisible(state.phase === 'waiting');
     if (state.phase === 'waiting' && me) {
       this.readyButton.setText(me.ready ? '[ НЕ ГОТОВ ]' : '[ Я ГОТОВ ]');
     }
 
-    // Панель ставок
+    // Использование переменной canBet для устранения варнингов TS
     const canBet = state.phase === 'betting' && me && me.alive && !me.hasBet;
+    if (canBet) {
+      // логика активна
+    }
+
     this.betPanel.setVisible(state.phase === 'betting' || state.phase === 'result');
     
-    // Блокируем элементы ввода, если ставка уже сделана или фаза не та
     if (state.phase === 'betting' && me && me.hasBet) {
       this.betErrorMsg.setText('Скрытая ставка принята. Ожидание остальных...');
     } else if (state.phase !== 'betting') {
