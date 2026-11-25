@@ -1,7 +1,7 @@
-// Эффекты описаны данными, применение — в GameRoom.applyItemEffect / applyTarget.
+// Каталог лотов. Эффекты описаны данными, применение — в GameRoom.applyItemEffect / applyTarget.
 // Новый лот добавляется одной записью, код комнаты менять не нужно.
 // weight — относительная частота выпадения.
-// armor — сколько единиц урона добавляет раковина (броня копится, лимит MAX_ARMOR).
+// armor — единицы брони (вычитаются из урона, лимит MAX_ARMOR).
 // pierces: true — урон идёт мимо брони и не расходует её.
 const ITEMS = [
     {
@@ -55,8 +55,8 @@ const ITEMS = [
     {
         id: "white_pearl",
         name: "Белая жемчужина",
-        desc: "+2 души победителю аукциона.",
-        weight: 9, needsTarget: false, souls: 2,
+        desc: "+5 душ победителю аукциона.",
+        weight: 9, needsTarget: false, souls: 5,
     },
     {
         id: "black_pearl",

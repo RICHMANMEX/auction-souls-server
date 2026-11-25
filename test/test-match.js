@@ -1,6 +1,6 @@
 // npm test — поднимает сервер на 3457 и прогоняет две комнаты:
 // A: случайные лоты, полный матч до победителя, перезапуск, отключение.
-// B: фиксированная последовательность лотов — каждый эффект проверяется точными числами.
+// B: фиксированная последовательность лотов — каждый эффект точными числами.
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 const http = require("node:http");
@@ -140,7 +140,8 @@ function mute(room) {
     room.onMessage("error", () => {});
 }
 
-// управляемый раунд: победитель ставит bid, соперник 0, затем указываем цель
+// управляемый раунд: победитель ставит bid, соперник 0, затем указываем цель.
+// возвращает управление в фазе resolution (эффект применён, доход раунда ещё не начислен)
 async function forcedRound(host, winner, loser, bid, needTarget) {
     await waitForPhase(host, "betting");
     const round = host.state.round;
@@ -151,8 +152,9 @@ async function forcedRound(host, winner, loser, bid, needTarget) {
         await waitForPhase(host, "item_action");
         winner.send("choose_target", { targetId: loser.sessionId });
     }
-    await waitUntil(host, (st) => st.round > round || st.phase === "game_over", "переход к следующему раунду");
+    await waitUntil(host, (st) => st.phase === "resolution" || st.phase === "game_over", "применение эффекта");
     await sleep(60);
+    return round;
 }
 
 async function main() {
@@ -226,9 +228,11 @@ async function main() {
         check(anna.souls === 8, `у победителя списана его ставка (души Анны: ${anna.souls})`);
         check(boris.souls === 10 && vera.souls === 10, "проигравшие участники душ не теряют");
 
-        console.log("6. Второй раунд и отключение игрока во время торгов");
+        console.log("6. Второй раунд: доход и отключение игрока во время торгов");
         await waitUntil(r1, (st) => st.round === 2 && st.phase === "betting", "старт торгов 2-го раунда");
         check(anna.hasBet === false && boris.hasBet === false, "во 2-м раунде флаги hasBet сброшены");
+        check(anna.souls === 10 && boris.souls === 12,
+            `доход раунда +2 начислен живым игрокам (Анна: ${anna.souls}, Борис: ${boris.souls})`);
         const result2Promise = waitForMessage(r1, "auction_result");
         r1.send("bet", { amount: 1 });
         r2.send("bet", { amount: 3 });
@@ -281,20 +285,21 @@ async function main() {
         check(r1.state.gameWinnerId === r1.sessionId,
             "при выходе соперника последний живой игрок побеждает автоматически");
 
-        console.log("10. Комната B: точная проверка эффектов всех 10 предметов");
+        console.log("10. Комната B: точная проверка эффектов, дохода и невостребованного лота");
         const sequence = [
-            "white_pearl",     // R1  Глеб +2 души
-            "black_pearl",     // R2  Дора крадёт 2 у Глеба
-            "fork",            // R3  1 урон Доре, брони нет        HP 5->4
-            "shell_1",         // R4  Дора броня 1
-            "trident",         // R5  2 урона: 1 гасится, 1 проходит HP 4->3, броня 0
-            "shell_3",         // R6  броня 0+3=3
-            "coral",           // R7  1 пробивает                   HP 3->2, броня 3
-            "shell_2",         // R8  броня 3+2=5
-            "shell_2",         // R9  броня 5+2=7 -> лимит 6
-            "trident",         // R10 2 против брони 6 -> 0 урона,   броня 4
-            "potion",          // R11 лечение                       HP 2->3
-            "legend_trident",  // R12 3 пробивает                   HP 3->0, смерть
+            "white_pearl",     // R1  Глеб 1 : 0 -> +5 душ
+            "shell_1",         // R2  0 : 0  -> лот невостребован
+            "black_pearl",     // R3  Дора 1 : 0 -> кража 2
+            "fork",            // R4  1 урон
+            "shell_1",         // R5  броня 1
+            "trident",         // R6  2 урона: 1 гасится, 1 проходит
+            "shell_3",         // R7  броня 3
+            "coral",           // R8  пробивает, броня целая
+            "shell_2",         // R9  броня 5
+            "shell_2",         // R10 броня 6 (лимит)
+            "trident",         // R11 полное поглощение
+            "potion",          // R12 лечение
+            "legend_trident",  // R13 пробивает, смерть
         ];
         const c4 = new Client(URL);
         const c5 = new Client(URL);
@@ -311,59 +316,72 @@ async function main() {
         const G = () => g.state.players.get(g.sessionId);
         const D = () => g.state.players.get(d.sessionId);
 
-        // R1: оба ставят 0, ничья -> приоритет у первого вошедшего (Глеб), платит 0
-        await forcedRound(g, g, d, 0, false);
-        check(G().souls === 12, `белая жемчужина даёт +2 души (у Глеба: ${G().souls})`);
+        // R1: белая жемчужина +5 (10 - 1 ставка + 5)
+        await forcedRound(g, g, d, 1, false);
+        check(G().souls === 14, `белая жемчужина даёт +5 душ (у Глеба: ${G().souls})`);
 
-        // R2: Дора выигрывает за 1 и крадёт 2 у Глеба
+        // доход +2 каждому живому в начале 2-го раунда
+        await waitForPhase(g, "betting");
+        check(G().souls === 16 && D().souls === 12,
+            `доход раунда +2 начислен обоим (Глеб: ${G().souls}, Дора: ${D().souls})`);
+
+        // R2: все ставки 0 — лот никому не достаётся
+        await forcedRound(g, g, d, 0, false);
+        check(g.state.auctionWinnerId === "" && D().armor === 0 && G().armor === 0,
+            "при нулевых ставках лот уходит невостребованным, эффект не применяется");
+
+        // R3: чёрная жемчужина крадёт 2
         await forcedRound(g, d, g, 1, true);
-        check(G().souls === 10 && D().souls === 11,
+        check(G().souls === 16 && D().souls === 15,
             `чёрная жемчужина крадёт 2 души (Глеб: ${G().souls}, Дора: ${D().souls})`);
 
-        // R3: вилка, 1 урон, брони нет
+        // R4: вилка 1 урон
         await forcedRound(g, g, d, 1, true);
         check(D().hp === 4, `вилка наносит 1 урон (HP Доры: ${D().hp})`);
 
-        // R4: раковина I -> броня 1
+        // R5: раковина I -> броня 1
         await forcedRound(g, d, g, 1, false);
         check(D().armor === 1, `раковина I даёт 1 единицу брони (броня: ${D().armor})`);
 
-        // R5: трезубец 2 против брони 1 -> частичное поглощение
+        // R6: трезубец 2 против брони 1 -> частичное поглощение
         await forcedRound(g, g, d, 1, true);
         check(D().hp === 3 && D().armor === 0,
             `броня вычитается из урона: 2 - 1 = 1 урон по HP (HP: ${D().hp}, броня: ${D().armor})`);
 
-        // R6: раковина III -> броня 3
+        // R7: раковина III -> броня 3
         await forcedRound(g, d, g, 1, false);
         check(D().armor === 3, `раковина III даёт 3 единицы брони (броня: ${D().armor})`);
 
-        // R7: коралл пробивает и не тратит броню
+        // R8: коралл пробивает и не тратит броню
         await forcedRound(g, g, d, 1, true);
         check(D().hp === 2 && D().armor === 3,
             `коралл пробивает броню и не расходует её (HP: ${D().hp}, броня: ${D().armor})`);
 
-        // R8: раковина II -> броня 3+2=5
+        // R9: раковина II -> броня 5
         await forcedRound(g, d, g, 1, false);
         check(D().armor === 5, `броня копится: 3 + 2 = 5 (броня: ${D().armor})`);
 
-        // R9: ещё раковина II -> 5+2=7, обрезается лимитом 6
+        // R10: ещё раковина II -> лимит 6
         await forcedRound(g, d, g, 1, false);
         check(D().armor === MAX_ARMOR,
             `броня ограничена лимитом ${MAX_ARMOR} (броня: ${D().armor})`);
 
-        // R10: трезубец 2 против брони 6 -> полное поглощение
+        // R11: трезубец 2 против брони 6 -> полное поглощение
         await forcedRound(g, g, d, 1, true);
         check(D().hp === 2 && D().armor === 4,
             `броня гасит урон полностью: 6 - 2 = 4 брони, HP не тронут (HP: ${D().hp}, броня: ${D().armor})`);
 
-        // R11: зелье лечит
+        // R12: зелье лечит
         await forcedRound(g, d, g, 1, false);
         check(D().hp === 3, `зелье глубин восстанавливает 1 HP (HP Доры: ${D().hp})`);
 
-        // R12: легендарка 3 пробивает броню 4 -> смерть
+        // R13: легендарка 3 пробивает броню 4 -> смерть
         await forcedRound(g, g, d, 1, true);
         check(D().hp === 0 && D().alive === false && D().armor === 4,
             `легендарный трезубец пробивает броню: 3 урона по HP (HP: ${D().hp}, жив: ${D().alive})`);
+
+        await g.leave();
+        await d.leave();
     } finally {
         server.kill();
         await sleep(300);

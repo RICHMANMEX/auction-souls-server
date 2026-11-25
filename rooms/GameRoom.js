@@ -9,6 +9,8 @@ const TIMINGS = {
 };
 
 const MIN_PLAYERS = 2;
+// доход каждого живого игрока в начале раунда (со второго), чтобы экономика не вымирала
+const ROUND_INCOME = 2;
 
 class GameRoom extends Room {
     onCreate(options) {
@@ -185,6 +187,14 @@ class GameRoom extends Room {
             return;
         }
 
+        // доход со второго раунда, чтобы банкроты возвращались в игру
+        if (this.state.round > 1) {
+            for (const id of this.aliveIds()) {
+                this.state.players.get(id).souls += ROUND_INCOME;
+            }
+            this.broadcastEvent(`Доход раунда: +${ROUND_INCOME} души каждому живому игроку.`);
+        }
+
         const item = this.pickItem();
         this.state.itemId = item.id;
         this.state.itemName = item.name;
@@ -244,8 +254,6 @@ class GameRoom extends Room {
         }
 
         const winner = this.state.players.get(winnerId);
-        winner.souls -= winnerBet;
-        this.state.auctionWinnerId = winnerId;
         this.setPhase("result");
 
         const revealed = {};
@@ -257,8 +265,18 @@ class GameRoom extends Room {
             winnerName: winner.name,
             winnerBet,
         });
-        this.broadcastEvent(`${winner.name} выигрывает лот «${this.state.itemName}» за ${winnerBet} душ.`);
 
+        // все поставили 0 — лот никому не достаётся, эффект не применяется
+        if (winnerBet === 0) {
+            this.state.auctionWinnerId = "";
+            this.broadcastEvent("Никто не поставил ни души — лот уходит невостребованным.");
+            this.schedule("result", this.timings.result, () => this.finishRound());
+            return;
+        }
+
+        winner.souls -= winnerBet;
+        this.state.auctionWinnerId = winnerId;
+        this.broadcastEvent(`${winner.name} выигрывает лот «${this.state.itemName}» за ${winnerBet} душ.`);
         this.schedule("result", this.timings.result, () => this.applyItemEffect());
     }
 
@@ -291,7 +309,7 @@ class GameRoom extends Room {
         }
         if (item.souls) {
             winner.souls += item.souls;
-            this.broadcastEvent(`${winner.name} получает ${item.souls} души (${item.name}).`);
+            this.broadcastEvent(`${winner.name} получает ${item.souls} душ (${item.name}).`);
         }
 
         this.finishRound();
