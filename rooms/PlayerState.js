@@ -1,28 +1,27 @@
 const { Schema, type } = require("@colyseus/schema");
 
-// Стартовые характеристики игрока (правила MVP).
-const START_HP = 3;
+// 5 HP: легендарка (3 урона) не убивает с полного, но оставляет 2.
+const START_HP = 5;
 const START_SOULS = 10;
+// броня измеряется в единицах урона, а не в «гашениях ударов»;
+// лимит нужен, иначе можно накопить непробиваемый запас
+const MAX_ARMOR = 6;
 
-// Состояние одного игрока (Стадия 3).
-// Эти поля видны ВСЕМ клиентам, поэтому здесь нет суммы текущей ставки —
-// ставки хранятся в приватной переменной комнаты (this.bets в GameRoom)
-// и раскрываются только после закрытия приёма ставок.
 class PlayerState extends Schema {
     constructor() {
         super();
-
-        this.name = "Безымянный";  // отображаемое имя
-        this.hp = START_HP;        // текущее здоровье
-        this.maxHp = START_HP;     // максимальное здоровье
-        this.souls = START_SOULS;  // души (игровая валюта для ставок)
-        this.alive = true;         // жив ли игрок
-        this.ready = false;        // готовность в лобби
-        this.hasBet = false;       // сделал ли ставку в текущем раунде (сама сумма скрыта)
+        this.name = "Безымянный";
+        this.hp = START_HP;
+        this.maxHp = START_HP;
+        this.souls = START_SOULS;
+        this.alive = true;
+        this.ready = false;
+        this.hasBet = false;
+        this.armor = 0;
     }
 }
 
-// Регистрация полей для синхронизации @colyseus/schema.
+// суммы ставки здесь нет намеренно: всё из схемы улетает всем клиентам
 type("string")(PlayerState.prototype, "name");
 type("number")(PlayerState.prototype, "hp");
 type("number")(PlayerState.prototype, "maxHp");
@@ -30,5 +29,6 @@ type("number")(PlayerState.prototype, "souls");
 type("boolean")(PlayerState.prototype, "alive");
 type("boolean")(PlayerState.prototype, "ready");
 type("boolean")(PlayerState.prototype, "hasBet");
+type("number")(PlayerState.prototype, "armor");
 
-module.exports = { PlayerState, START_HP, START_SOULS };
+module.exports = { PlayerState, START_HP, START_SOULS, MAX_ARMOR };
