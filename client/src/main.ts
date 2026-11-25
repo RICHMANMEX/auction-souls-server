@@ -10,12 +10,12 @@ const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
-  parent: 'app',
+  parent: 'app',   // ← должно совпадать с id div'а в index.html
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
+    autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [PreloadScene, MainMenuScene, GameScene]
+  scene: [PreloadScene, MainMenuScene, GameScene],
 };
 
 new Phaser.Game(config);
